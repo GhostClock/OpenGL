@@ -1,2 +1,2 @@
-# OpenGL-OpenGL-ES
+# OpenGL
 OpenGL学习
