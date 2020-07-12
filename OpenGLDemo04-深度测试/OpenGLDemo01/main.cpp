@@ -169,6 +169,12 @@ void ProcessMenu(int value) {
         case 2:
             iCull = !iCull;
             break;
+        case 3:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            break;
+        case 4:
+            glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+            break;
         default:
             break;
     }
@@ -195,6 +201,8 @@ int main(int argc, char* argv[])
     glutCreateMenu(ProcessMenu);
     glutAddMenuEntry("深度测试",1);
     glutAddMenuEntry("正背面剔除",2);
+    glutAddMenuEntry("线填充", 3);
+    glutAddMenuEntry("点填充", 4);
     glutAttachMenu(GLUT_RIGHT_BUTTON);
     
     //判断一下是否能初始化glew库，确保项目能正常使用OpenGL 框架
