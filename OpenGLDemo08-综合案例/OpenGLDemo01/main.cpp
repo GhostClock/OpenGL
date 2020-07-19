@@ -31,7 +31,7 @@ void SetupRC() {
     shaderManager.InitializeStockShaders();
     
     //2.开启深度测试
-    glEnable(GL_DEPTH_TEST);
+//    glEnable(GL_DEPTH_TEST);// 看旋转的话可以关闭深度测试
     
     //3.设置地板顶点数据
     //基于物体坐标系的正方体
@@ -44,6 +44,10 @@ void SetupRC() {
         floorBath.Vertex3f(-20.0, -0.55, x);
     }
     floorBath.End();
+    
+    //4.设置大球数据
+    gltMakeSphere(torusBatch, 0.4, 40, 80);
+    
 }
 
 // 窗口已更改大小，或刚刚创建。无论哪种情况，我们都需要
@@ -66,21 +70,64 @@ void ChangeSize(int w, int h) {
 
 //召唤场景
 void RenderScene(void) {
-    // 1.定义地板颜色
+    // 1.定义
+    // 地板颜色
     static GLfloat vFloorColor[] = {0.5, 1.5, 0.5, 1.0};
+    // 定义大球颜色
+    static GLfloat vTorusColor[] = {0.5, 0.5, 1.0, 1.0};
     
     // 2.清理颜色缓冲区和深度缓冲区，因为上面使用了深度测试，所以要清理深度缓冲区
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    // 基于时间的计时器，用作旋转动画
+    static CStopWatch rotTimer;
+    float yRot = rotTimer.GetElapsedSeconds() * 60.0;
+    
+    // 开始压栈
+    // 压栈的目的: 如果一个单元矩阵需要旋转，移动，缩放，完成后再出栈,当次的工作已经完毕，需要还原成原始的状态。
+    // 下次进来也是基于开始的原地进行操作
+    // 保证每次的操作不会出现冲突
+    // push1
+    modelViewMatrix.PushMatrix();
     
     // 3.绘制地面
     shaderManager.UseStockShader(GLT_SHADER_FLAT,
                                  transformPipeline.GetModelViewProjectionMatrix(),
                                  vFloorColor);
     // 4.开始绘制
+    // 绘制地板
     floorBath.Draw();
     
-    // 5.执行缓冲区交换
+    // 绘制大球
+    // 5.设置点光源
+    M3DVector4f vLightPos = {0, 10, 5, 1};
+    // 6.往z轴移动3个像素
+    // 笛卡尔坐标系屏幕左右是x，上下是y，垂直屏幕是z，且屏幕向内为负，相外为正
+    modelViewMatrix.Translate(0, 0, -3);
+    // 7.设置旋转
+    // 压栈
+    // push2
+    modelViewMatrix.PushMatrix();
+    // 8.开始旋转
+    modelViewMatrix.Rotate(yRot, 0, 1, 0);
+    // 9.指定合适的着色器
+    shaderManager.UseStockShader(GLT_SHADER_POINT_LIGHT_DIFF,
+                                 transformPipeline.GetModelViewMatrix(),
+                                 transformPipeline.GetProjectionMatrix(),
+                                 vLightPos,
+                                 vTorusColor);
+    // 绘制大球
+    torusBatch.Draw();
+    // 出栈:入栈几次，就要出栈几次
+    // pop1
+    modelViewMatrix.PopMatrix();
+    // pop2
+    modelViewMatrix.PopMatrix();
+    
+    // 10.执行缓冲区交换
     glutSwapBuffers();
+    // 11.每次提交渲染
+    glutPostRedisplay();
 }
 
 int main(int argc, char* argv[]) {
