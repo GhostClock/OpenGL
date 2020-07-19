@@ -23,6 +23,9 @@ GLTriangleBatch     torusBatch;         // 大球
 GLTriangleBatch     sphereBatch;        // 小球
 GLBatch             floorBath;          // 地板
 
+static int const NUM_MIN_SPHERES = 50; // 随机小球的个数
+GLFrame spheres[NUM_MIN_SPHERES];
+
 // 此函数在呈现上下文中进行任何必要的初始化。.
 // 这是第一次做任何与opengl相关的任务。
 void SetupRC() {
@@ -31,7 +34,7 @@ void SetupRC() {
     shaderManager.InitializeStockShaders();
     
     //2.开启深度测试
-//    glEnable(GL_DEPTH_TEST);// 看旋转的话可以关闭深度测试
+    glEnable(GL_DEPTH_TEST);// 看旋转的话可以关闭深度测试
     
     //3.设置地板顶点数据
     //基于物体坐标系的正方体
@@ -46,8 +49,23 @@ void SetupRC() {
     floorBath.End();
     
     //4.设置大球数据
+    /*
+     gltMakeSphere(三角形批次类, 弧度数, 片数, 堆栈数)
+     */
     gltMakeSphere(torusBatch, 0.4, 40, 80);
     
+    //5.设置小球
+    gltMakeSphere(sphereBatch, 0.1, 15, 26);
+    
+    //6.创建随机小球
+    // 在同一个平面，Y值是一样的,X和Z产生随机值
+    for (int i = 0; i < NUM_MIN_SPHERES; i ++) {
+        // X和Z产生随机值
+        GLfloat x = ((GLfloat)((rand() % 400) - 200) * 0.1);
+        GLfloat z = ((GLfloat)((rand() % 400) - 200) * 0.1);
+        
+        spheres[i].SetOrigin(x, 0.0, z); // 球的顶点
+    }
 }
 
 // 窗口已更改大小，或刚刚创建。无论哪种情况，我们都需要
@@ -75,6 +93,8 @@ void RenderScene(void) {
     static GLfloat vFloorColor[] = {0.5, 1.5, 0.5, 1.0};
     // 定义大球颜色
     static GLfloat vTorusColor[] = {0.5, 0.5, 1.0, 1.0};
+    // 定义小球颜色
+    static GLfloat vSphereColor[] = {1.0f, 1.0f, 0.0f, 1.0f};
     
     // 2.清理颜色缓冲区和深度缓冲区，因为上面使用了深度测试，所以要清理深度缓冲区
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -111,6 +131,7 @@ void RenderScene(void) {
     // 8.开始旋转
     modelViewMatrix.Rotate(yRot, 0, 1, 0);
     // 9.指定合适的着色器
+    // 过点光源的方式绘制
     shaderManager.UseStockShader(GLT_SHADER_POINT_LIGHT_DIFF,
                                  transformPipeline.GetModelViewMatrix(),
                                  transformPipeline.GetProjectionMatrix(),
@@ -121,6 +142,24 @@ void RenderScene(void) {
     // 出栈:入栈几次，就要出栈几次
     // pop1
     modelViewMatrix.PopMatrix();
+    
+    // 绘制50个小球:注意需要在第一个push里面,保证独立性
+    for (int i = 0; i < NUM_MIN_SPHERES; i ++) {
+        // push3
+        modelViewMatrix.PushMatrix();
+        modelViewMatrix.MultMatrix(spheres[i]);
+        // 还是用过点光源的方式绘制
+        shaderManager.UseStockShader(GLT_SHADER_POINT_LIGHT_DIFF,
+                                     transformPipeline.GetModelViewMatrix(),
+                                     transformPipeline.GetProjectionMatrix(),
+                                     vLightPos,
+                                     vSphereColor);
+        // 开始绘制
+        sphereBatch.Draw();
+        // pop3
+        modelViewMatrix.PopMatrix();
+    }
+    
     // pop2
     modelViewMatrix.PopMatrix();
     
