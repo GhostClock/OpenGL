@@ -23,6 +23,8 @@ GLTriangleBatch     torusBatch;         // 大球
 GLTriangleBatch     sphereBatch;        // 小球
 GLBatch             floorBath;          // 地板
 
+GLFrame             cameraFrame;        // 角色帧 照相机角色帧
+
 static int const NUM_MIN_SPHERES = 50; // 随机小球的个数
 GLFrame spheres[NUM_MIN_SPHERES];
 
@@ -110,6 +112,12 @@ void RenderScene(void) {
     // push1
     modelViewMatrix.PushMatrix();
     
+    // 设置观察者矩阵
+    M3DMatrix44f mCamera;
+    cameraFrame.GetCameraMatrix(mCamera);
+    // push5
+    modelViewMatrix.PushMatrix(mCamera);
+    
     // 3.绘制地面
     shaderManager.UseStockShader(GLT_SHADER_FLAT,
                                  transformPipeline.GetModelViewProjectionMatrix(),
@@ -160,6 +168,25 @@ void RenderScene(void) {
         modelViewMatrix.PopMatrix();
     }
     
+    // 绘制一个小球围绕大球旋转(围绕y轴旋转)
+    // PS: 因为这是最后一个绘制出来的图像，不会影响到其他的图像，所以就不需要push和pop
+    // modelViewMatrix.PushMatrix(); // push4
+    // Rotate(每次旋转的度数, x, y, z)，
+    modelViewMatrix.Rotate(yRot * -1, 0, 1, 0); // yRot*1可以调节快慢和方向，正为逆时针，负为顺时针
+    // 防止和大球重叠，需要平移一段距离
+    modelViewMatrix.Translate(1.0, 0, 0);
+    // 用过点光源的方式绘制
+    shaderManager.UseStockShader(GLT_SHADER_POINT_LIGHT_DIFF,
+                                 transformPipeline.GetModelViewMatrix(),
+                                 transformPipeline.GetProjectionMatrix(),
+                                 vLightPos,
+                                 vSphereColor);
+    // 绘制
+    sphereBatch.Draw();
+    // modelViewMatrix.PopMatrix(); // pop4
+    
+    // pop5
+    modelViewMatrix.PopMatrix();
     // pop2
     modelViewMatrix.PopMatrix();
     
@@ -167,6 +194,27 @@ void RenderScene(void) {
     glutSwapBuffers();
     // 11.每次提交渲染
     glutPostRedisplay();
+}
+
+// 实现键位控制
+void SpeacialKey(int key, int x, int y) {
+    // 设置移动的步长
+    float linear = 0.1;
+    // 设置移动的角度
+    float angular = float(m3dDegToRad(5.0));
+    
+    if (key == GLUT_KEY_UP) {
+        cameraFrame.MoveForward(linear);
+    } else if (key == GLUT_KEY_DOWN) {
+        cameraFrame.MoveForward(-linear);
+    } else if (key == GLUT_KEY_LEFT) {
+        cameraFrame.RotateWorld(angular, 0.0, 1, 0.0);
+    } else if (key == GLUT_KEY_RIGHT) {
+        cameraFrame.RotateWorld(-angular, 0.0, 1, 0.0);
+    } else {
+        // Other
+    }
+    // glutPostRedisplay(); // 可以不用写，因为最终会调用RenderScene函数里面，里面调用了该函数
 }
 
 int main(int argc, char* argv[]) {
@@ -178,6 +226,7 @@ int main(int argc, char* argv[]) {
    glutCreateWindow("综合案例");
    glutReshapeFunc(ChangeSize);
    glutDisplayFunc(RenderScene);
+   glutSpecialFunc(SpeacialKey);
    
    GLenum err = glewInit();
    if (GLEW_OK != err) {
